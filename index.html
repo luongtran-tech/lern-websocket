@@ -1,0 +1,145 @@
+ut the following in your index.html file:
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Socket.IO chat</title>
+    <style>
+      body {
+        margin: 0;
+        padding-bottom: 3rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+      }
+
+      #form {
+        background: rgba(0, 0, 0, 0.15);
+        padding: 0.25rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        height: 3rem;
+        box-sizing: border-box;
+        backdrop-filter: blur(10px);
+      }
+      #input {
+        border: none;
+        padding: 0 1rem;
+        flex-grow: 1;
+        border-radius: 2rem;
+        margin: 0.25rem;
+      }
+      #input:focus {
+        outline: none;
+      }
+      #form > button {
+        background: #333;
+        border: none;
+        padding: 0 1rem;
+        margin: 0.25rem;
+        border-radius: 3px;
+        outline: none;
+        color: #fff;
+      }
+
+      #messages {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+        padding-bottom: 50px;
+      }
+      #messages > li {
+        padding: 0.5rem 1rem;
+      }
+      #messages > li:nth-child(odd) {
+        background: #efefef;
+      }
+    </style>
+  </head>
+  <body>
+    <ul id="messages"></ul>
+    <form id="form" action="">
+      <input id="input" autocomplete="off" /><button>Send</button>
+      <button id="toggle-btn">Disconnect</button>
+    </form>
+    <!-- <script src="/socket.io/socket.io.js"></script> -->
+    <input type="text" id="username" />
+    <button id="join-btn">JoinRoom</button>
+    <script
+      src="https://cdn.socket.io/4.7.4/socket.io.min.js"
+      integrity="sha384-Gr6Lu2Ajx28mzwyVR8CFkULdCU7kMlZ9UthllibdOSo6qAiN+yXNHqtgdTvFXMT4"
+      crossorigin="anonymous"
+    ></script>
+    <script>
+      let counter = 0;
+      const socket = io("http://localhost:6869", {
+        transports: ["websocket"],
+        withCredentials: true,
+        auth: {
+          serverOffset: 0,
+          token: 123,
+        },
+        // enable retries
+        // ackTimeout: 10000,
+        // retries: 3,
+      });
+      const form = document.getElementById("form");
+      const input = document.getElementById("input");
+      const messages = document.getElementById("messages");
+      const toggleButton = document.getElementById("toggle-btn");
+      const joinButton = document.getElementById("join-btn");
+      const user = document.getElementById("username");
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (input.value) {
+          // compute a unique offset
+          const clientOffset = `${socket.id}-${counter++}`;
+          socket.emit("chat_message", input.value, clientOffset);
+          socket.emit("notification", "test notification");
+          input.value = "";
+        }
+      });
+      socket.on("chat_message", (msg, serverOffset) => {
+        console.log(msg);
+        const item = document.createElement("li");
+        item.textContent = msg;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+        socket.auth.serverOffset = serverOffset;
+      });
+      socket.on("connect_error", (msg, serverOffset) => {
+        const item = document.createElement("li");
+        item.textContent = msg;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
+        socket.auth.serverOffset = serverOffset;
+      });
+
+      socket.on("notification", (msg, serverOffset) => {
+        console.log(msg);
+      });
+      toggleButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (socket.connected) {
+          toggleButton.innerText = "Connect";
+          socket.disconnect();
+        } else {
+          toggleButton.innerText = "Disconnect";
+          socket.connect();
+        }
+      });
+
+      joinButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        const rooms = Math.random() * 10 + 1;
+        socket.emit("joinRoom", "room1", user.value);
+      });
+      socket.on("userJoined", (userId) => {
+        console.log(`${userId} joined the room`);
+      });
+    </script>
+  </body>
+</html>
